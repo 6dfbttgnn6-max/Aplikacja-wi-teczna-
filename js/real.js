@@ -21,6 +21,8 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const hash = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
 let img = null;
+let RES = 1; // 1 = 720x1280, 1.5 = 1080x1920
+export function setResolution(r) { RES = r; }
 let lights = [];
 let jawCanvas = null;
 
@@ -65,9 +67,9 @@ export function realReady() { return !!img; }
 /** Kamera: zoom i punkt środka (w pikselach obrazu) w danej chwili. */
 export function cameraAt(t, film) {
   const wide = { z: 1.0, x: IMG_W / 2, y: IMG_H / 2 };
-  const face = { z: 2.15, x: 600, y: 770 };
-  const faceClose = { z: 2.35, x: 598, y: 755 };
-  const mid = { z: 1.6, x: 610, y: 840 };
+  const face = { z: 1.7, x: 600, y: 800 };
+  const faceClose = { z: 1.85, x: 598, y: 780 };
+  const mid = { z: 1.45, x: 610, y: 860 };
   if (!film) {
     // podgląd na stronie: powolne "oddychanie" kamery między planem ogólnym a średnim
     const k = 0.5 - 0.5 * Math.cos(t * 0.12);
@@ -103,12 +105,12 @@ export function cameraAt(t, film) {
 
 function applyCamera(ctx, cam) {
   // obraz 1080x1920 ma te same proporcje co kadr 720x1280
-  const s = (W / IMG_W) * cam.z;
+  const s = (W / IMG_W) * cam.z * RES;
   // nie wyjeżdżamy poza obraz
-  const halfW = W / s / 2, halfH = H / s / 2;
+  const halfW = (W * RES) / s / 2, halfH = (H * RES) / s / 2;
   const cx = clamp(cam.x, halfW, IMG_W - halfW);
   const cy = clamp(cam.y, halfH, IMG_H - halfH);
-  ctx.setTransform(s, 0, 0, s, W / 2 - cx * s, H / 2 - cy * s);
+  ctx.setTransform(s, 0, 0, s, (W * RES) / 2 - cx * s, (H * RES) / 2 - cy * s);
 }
 
 // ---------------------------------------------------------------- warstwy animowane
@@ -266,7 +268,7 @@ function grade(ctx) {
  */
 export function drawReal(ctx, t, st, cam) {
   ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.setTransform(RES, 0, 0, RES, 0, 0);
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, W, H);
   applyCamera(ctx, cam);
@@ -290,7 +292,7 @@ export function drawReal(ctx, t, st, cam) {
   drawLights(ctx, t);
   drawMotes(ctx, t);
   ctx.restore();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.setTransform(RES, 0, 0, RES, 0, 0);
   grade(ctx);
 
   if (st.ending > 0) {

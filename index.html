@@ -44,6 +44,45 @@
       <textarea id="letter" rows="8" placeholder="Drogi Mikołaju! W tym roku byłam grzeczna i pomagałam mamie. Chciałabym dostać…"></textarea>
       <div id="count" class="count">0 / 200 słów</div>
 
+
+      <details class="settings">
+        <summary>⚙️ Ustawienia filmu</summary>
+        <div class="set">
+          <label for="set-letterTempo">Tempo czytania listu <output id="out-letterTempo"></output></label>
+          <input type="range" id="set-letterTempo" min="0.6" max="1.2" step="0.05">
+          <div class="scale"><span>wolniej</span><span>szybciej</span></div>
+        </div>
+        <div class="set">
+          <label for="set-santaTempo">Tempo mowy Mikołaja <output id="out-santaTempo"></output></label>
+          <input type="range" id="set-santaTempo" min="0.6" max="1.2" step="0.05">
+          <div class="scale"><span>wolniej</span><span>szybciej</span></div>
+        </div>
+        <div class="set">
+          <label for="set-pause">Pauzy między zdaniami <output id="out-pause"></output></label>
+          <input type="range" id="set-pause" min="0.8" max="2.2" step="0.1">
+        </div>
+        <div class="set">
+          <label for="set-pitch">Wysokość głosu <output id="out-pitch"></output></label>
+          <input type="range" id="set-pitch" min="0.78" max="1" step="0.01">
+          <div class="scale"><span>niżej</span><span>wyżej</span></div>
+        </div>
+        <div class="set">
+          <label for="set-music">Głośność muzyki <output id="out-music"></output></label>
+          <input type="range" id="set-music" min="0" max="1.5" step="0.05">
+        </div>
+        <div class="set row">
+          <label for="set-subtitles">Napisy w filmie</label>
+          <input type="checkbox" id="set-subtitles">
+        </div>
+        <div class="set">
+          <label for="set-quality">Jakość obrazu</label>
+          <select id="set-quality">
+            <option value="high">Wysoka (Full HD 1080p, większy plik)</option>
+            <option value="standard">Standardowa (720p, mniejszy plik)</option>
+          </select>
+        </div>
+        <button type="button" id="set-reset" class="link">Przywróć ustawienia domyślne</button>
+      </details>
       <button type="button" id="go" class="go" disabled>🎬 Film od Świętego Mikołaja</button>
       <p id="error" class="error" hidden></p>
       <p class="small">Za pierwszym razem aplikacja pobiera darmowy głos Mikołaja (ok. 63 MB, najlepiej przez Wi‑Fi). Film powstaje w całości na Twoim telefonie: imię i list nie są nigdzie wysyłane.</p>

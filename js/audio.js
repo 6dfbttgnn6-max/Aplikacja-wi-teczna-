@@ -130,11 +130,11 @@ function sparkleGliss(ctx, dest, t0) {
  * @param {Array<{audio:Float32Array, pauseAfter:number, section:string, text:string}>} segs
  * @param {number} srcRate częstotliwość próbkowania syntezatora
  */
-export async function buildSoundtrack(segs, srcRate, { fps = 25 } = {}) {
+export async function buildSoundtrack(segs, srcRate, { fps = 25, pitch = PITCH, music: musicLevel = 1 } = {}) {
   // oś czasu
   let t = INTRO;
   const timeline = segs.map((s) => {
-    const dur = s.audio.length / srcRate / PITCH;
+    const dur = s.audio.length / srcRate / pitch;
     const item = { start: t, end: t + dur, section: s.section, text: s.text };
     t = item.end + s.pauseAfter;
     return item;
@@ -172,7 +172,7 @@ export async function buildSoundtrack(segs, srcRate, { fps = 25 } = {}) {
     b.copyToChannel(s.audio, 0);
     const src = ctx.createBufferSource();
     src.buffer = b;
-    src.playbackRate.value = PITCH;
+    src.playbackRate.value = pitch;
     src.connect(hp);
     src.start(timeline[i].start);
   });
@@ -185,7 +185,7 @@ export async function buildSoundtrack(segs, srcRate, { fps = 25 } = {}) {
   music.connect(musicLp).connect(master);
   musicLp.connect(musicVerb).connect(musicWet).connect(master);
 
-  const FULL = 0.55, DUCK = 0.13;
+  const FULL = 0.0001 + 0.55 * musicLevel, DUCK = 0.0001 + 0.13 * musicLevel;
   music.gain.setValueAtTime(0.0001, 0);
   music.gain.linearRampToValueAtTime(FULL, 1.2);
   timeline.forEach((it, i) => {
@@ -224,12 +224,12 @@ export async function buildSoundtrack(segs, srcRate, { fps = 25 } = {}) {
   // obwiednia głosu do ruchu ust (wartość 0..1 na klatkę)
   const frames = Math.ceil(duration * fps);
   const env = new Float32Array(frames);
-  const win = Math.floor((srcRate * PITCH) / fps);
+  const win = Math.floor((srcRate * pitch) / fps);
   segs.forEach((s, i) => {
     const it = timeline[i];
     const f0 = Math.floor(it.start * fps), f1 = Math.ceil(it.end * fps);
     for (let f = f0; f < f1 && f < frames; f++) {
-      const pos = Math.floor((f / fps - it.start) * srcRate * PITCH);
+      const pos = Math.floor((f / fps - it.start) * srcRate * pitch);
       let e = 0, n = 0;
       for (let k = Math.max(0, pos - win); k < Math.min(s.audio.length, pos + win); k++) { e += s.audio[k] * s.audio[k]; n++; }
       env[f] = n ? Math.sqrt(e / n) : 0;

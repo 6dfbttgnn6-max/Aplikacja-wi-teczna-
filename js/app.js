@@ -4,7 +4,8 @@ import { loadVoice, synthesize, sampleRate, VOICES } from './tts.js';
 import { buildSoundtrack } from './audio.js';
 import { renderFilm } from './render.js';
 import { W, H } from './scene.js';
-import { loadReal, drawReal, cameraAt } from './real.js';
+import { loadReal, drawReal, cameraAt, setResolution } from './real.js';
+import { getSettings, initSettingsUI } from './settings.js';
 
 const $ = (s) => document.querySelector(s);
 const MAX_WORDS = 200;
@@ -102,21 +103,26 @@ async function makeFilm() {
     progress('Pobieram głos Świętego Mikołaja (tylko za pierwszym razem, ok. 63 MB)…', 0);
     await loadVoice(VOICES.mc_speech, (f) => progress('Pobieram głos Świętego Mikołaja (tylko za pierwszym razem, ok. 63 MB)…', f * 0.98));
 
+    const cfg = getSettings();
     const script = buildScript({ vocative: voc, gender, letter: els.letter.value });
+    for (const s of script) s.pauseAfter *= s.section === 'letter' ? cfg.pause : Math.max(1, cfg.pause * 0.8);
     const segs = [];
     for (let i = 0; i < script.length; i++) {
       progress('Mikołaj nagrywa swoje słowa…', i / script.length);
-      const audio = await synthesize(script[i].text);
+      const sec = script[i].section;
+      const tempo = sec === 'letter' ? cfg.letterTempo : cfg.santaTempo;
+      const audio = await synthesize(script[i].text, { lengthScale: 1.1 / tempo });
       segs.push({ ...script[i], audio });
       await new Promise((r) => setTimeout(r, 0));
     }
     progress('Elfy dodają muzykę i dzwoneczki…', 0.5);
-    const track = await buildSoundtrack(segs, sampleRate(), { fps: FPS });
-    const film = { ...track, titleText: `${gender === 'f' ? 'Droga' : 'Drogi'} ${voc}!` };
+    const track = await buildSoundtrack(segs, sampleRate(), { fps: FPS, pitch: cfg.pitch, music: cfg.music });
+    const film = { ...track, subtitles: cfg.subtitles, titleText: `${gender === 'f' ? 'Droga' : 'Drogi'} ${voc}!` };
 
     heroOn = false;
     els.hero.classList.add('rendering');
     const res = await renderFilm(film, els.hero, {
+      quality: cfg.quality,
       audioCtx,
       onProgress: (f) => progress('Elfy montują film… Nie wyłączaj ekranu.', f),
     });
@@ -140,6 +146,8 @@ async function makeFilm() {
     els.error.textContent = 'Coś poszło nie tak: ' + (e && e.message ? e.message : e) + ' Spróbuj jeszcze raz.';
   } finally {
     els.hero.classList.remove('rendering');
+    setResolution(1);
+    els.hero.width = W; els.hero.height = H;
     heroOn = true;
     requestAnimationFrame(heroLoop);
     try { await wake?.release(); } catch { /* */ }
@@ -158,3 +166,4 @@ els.again.addEventListener('click', () => {
 });
 
 validate();
+initSettingsUI();

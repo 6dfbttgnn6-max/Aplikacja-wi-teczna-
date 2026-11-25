@@ -2,18 +2,25 @@
 // a jeśli telefon jej nie obsługuje – nagrywanie w czasie rzeczywistym przez MediaRecorder.
 import { Muxer, ArrayBufferTarget } from '../vendor/mp4-muxer.mjs';
 import { stateAt, W, H } from './scene.js';
-import { loadReal, drawReal, cameraAt } from './real.js';
+import { loadReal, drawReal, cameraAt, setResolution } from './real.js';
 
-const frame = (ctx, t, film) => drawReal(ctx, t, stateAt(t, film), cameraAt(t, film));
+const frame = (ctx, t, film) => {
+  const st = stateAt(t, film);
+  if (film.subtitles === false) st.subtitle = '';
+  drawReal(ctx, t, st, cameraAt(t, film));
+};
 
 const VIDEO_CODECS = ['avc1.640028', 'avc1.4D4028', 'avc1.42E028', 'avc1.42E01F'];
-const VIDEO_BITRATE = 2_200_000; // ok. 16 MB na minutę filmu
+// Jakość: wysoka = 1080x1920, ok. 6 Mb/s (ok. 45 MB na minutę); standard = 720x1280, ok. 2,5 Mb/s
+const QUALITY = { high: { res: 1.5, bitrate: 6_000_000 }, standard: { res: 1, bitrate: 2_500_000 } };
+let VIDEO_BITRATE = QUALITY.high.bitrate;
+let OW = Math.round(W * 1.5), OH = Math.round(H * 1.5);
 
 async function findVideoCodec(fps) {
   if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') return null;
   for (const codec of VIDEO_CODECS) {
     try {
-      const r = await VideoEncoder.isConfigSupported({ codec, width: W, height: H, bitrate: VIDEO_BITRATE, framerate: fps });
+      const r = await VideoEncoder.isConfigSupported({ codec, width: OW, height: OH, bitrate: VIDEO_BITRATE, framerate: fps });
       if (r.supported) return codec;
     } catch { /* następny */ }
   }
@@ -57,7 +64,7 @@ async function encodeWebCodecs(film, canvas, method, onProgress) {
   const sampleRate = buffer.sampleRate;
   const muxer = new Muxer({
     target: new ArrayBufferTarget(),
-    video: { codec: 'avc', width: W, height: H, frameRate: fps },
+    video: { codec: 'avc', width: OW, height: OH, frameRate: fps },
     audio: { codec: method.audio, numberOfChannels: 2, sampleRate },
     fastStart: 'in-memory',
     firstTimestampBehavior: 'offset',
@@ -91,7 +98,7 @@ async function encodeWebCodecs(film, canvas, method, onProgress) {
     output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
     error: (e) => { failure = e; },
   });
-  venc.configure({ codec: method.video, width: W, height: H, bitrate: VIDEO_BITRATE, framerate: fps, avc: { format: 'avc' } });
+  venc.configure({ codec: method.video, width: OW, height: OH, bitrate: VIDEO_BITRATE, framerate: fps, avc: { format: 'avc' } });
   const total = Math.ceil(duration * fps);
   const frameDur = Math.round(1e6 / fps);
   for (let i = 0; i < total; i++) {
@@ -149,9 +156,13 @@ async function recordRealtime(film, canvas, method, onProgress, audioCtx) {
 }
 
 /** Renderuje film. Zwraca {blob, mime, ext, method}. */
-export async function renderFilm(film, canvas, { onProgress, audioCtx, force } = {}) {
-  canvas.width = W;
-  canvas.height = H;
+export async function renderFilm(film, canvas, { onProgress, audioCtx, force, quality = 'high' } = {}) {
+  const q = QUALITY[quality] || QUALITY.high;
+  VIDEO_BITRATE = q.bitrate;
+  OW = Math.round(W * q.res); OH = Math.round(H * q.res);
+  setResolution(q.res);
+  canvas.width = OW;
+  canvas.height = OH;
   await loadReal();
   const method = await pickMethod(film.fps, film.buffer.sampleRate, force);
   if (!method) throw new Error('Ta przeglądarka nie potrafi zapisać filmu. Spróbuj w Chrome (Android) lub Safari (iPhone).');

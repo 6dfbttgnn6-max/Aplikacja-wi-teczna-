@@ -69,7 +69,7 @@ export function buildScript({ vocative, gender, gifts, seed = Date.now() }) {
 
   const sorry = pick([
     'Przepraszam Cię, ale w tym roku nie dam rady odwiedzić Cię osobiście. Na całym świecie czeka na mnie tyle dzieci, że moje renifery ledwo nadążają.',
-    'Mam też dla Ciebie pewną wiadomość. Przepraszam Cię, ale tym razem nie przyjadę do Ciebie osobiście. Mam do odwiedzenia mnóstwo dzieci na całym świecie, a wigilijna noc jest taka krótka.',
+    'Mam też dla Ciebie pewną wiadomość. Przepraszam Cię, ale w tym roku nie przyjadę do Ciebie osobiście. Mam do odwiedzenia mnóstwo dzieci na całym świecie, a wigilijna noc jest taka krótka.',
     'Przepraszam Cię, że w tym roku nie zapukam do Twoich drzwi. Muszę odwiedzić tyle dzieci na całym świecie, że nawet moje najszybsze renifery ledwo dają radę.',
   ], rnd);
 

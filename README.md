@@ -13,7 +13,7 @@ Wszystko dzieje się na telefonie. Imię i list nie są nigdzie wysyłane.
 | Wymowa | Własna zamiana pisowni na głoski (`js/g2p.js`), bo fonetyzator WASM gubi polskie znaki. |
 | Imię | Automatyczny wołacz (`js/names.js`: Zosia → Zosiu, Jan → Janie), z możliwością ręcznej poprawki. |
 | Tekst Mikołaja | `js/script.js`: kilka wersji każdego fragmentu, ten sam sens, forma zależna od płci. |
-| Obraz | Ilustracja `img/mikolaj.jpg` ożywiona w `js/real.js`: ruch ust zsynchronizowany z głosem, ogień, światełka, śnieg za oknami, praca kamery, napisy. |
+| Obraz | Montaż w `js/real.js`: plan ogólny pracowni z elfami (`img/mikolaj.jpg`), zbliżenie na Mikołaja z ruchem ust zsynchronizowanym z głosem (`img/mikolaj-blisko.jpg`) i prawdziwe wideo czytania listu w okularach (`img/czytanie.mp4`, wygenerowane w Canva). Do tego ogień, światełka, śnieg, ruch kamery, przejścia i napisy. |
 | Muzyka | „Cicha noc” (F. X. Gruber, 1818, domena publiczna) generowana w przeglądarce, ciszej, gdy Mikołaj mówi, plus dzwoneczki sań. |
 | Plik | WebCodecs + mp4-muxer (H.264 + AAC), a gdy telefon tego nie obsługuje, nagrywanie przez MediaRecorder. |
 

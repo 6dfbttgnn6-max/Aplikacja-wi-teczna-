@@ -2,17 +2,21 @@
 // a jeśli telefon jej nie obsługuje – nagrywanie w czasie rzeczywistym przez MediaRecorder.
 import { Muxer, ArrayBufferTarget } from '../vendor/mp4-muxer.mjs';
 import { stateAt, W, H } from './scene.js';
-import { loadReal, drawReal, cameraAt, setResolution } from './real.js';
+import { loadReal, loadVideo, drawReal, shotAt, seekVideo, syncVideoLive, setResolution } from './real.js';
 
-const frame = (ctx, t, film) => {
+// Klatka filmu. W trybie klatka po klatce czekamy, aż wideo przewinie się dokładnie do właściwego miejsca.
+const frame = async (ctx, t, film, live = false) => {
   const st = stateAt(t, film);
   if (film.subtitles === false) st.subtitle = '';
-  drawReal(ctx, t, st, cameraAt(t, film));
+  const shot = shotAt(t, film);
+  if (live) syncVideoLive(shot);
+  else if (shot.kind === 'wideo') await seekVideo(shot.vt);
+  drawReal(ctx, t, st, shot);
 };
 
 const VIDEO_CODECS = ['avc1.640028', 'avc1.4D4028', 'avc1.42E028', 'avc1.42E01F'];
-// Jakość: wysoka = 1080x1920, ok. 6 Mb/s (ok. 45 MB na minutę); standard = 720x1280, ok. 2,5 Mb/s
-const QUALITY = { high: { res: 1.5, bitrate: 6_000_000 }, standard: { res: 1, bitrate: 2_500_000 } };
+// Jakość: wysoka = 1080x1920, ok. 4,5 Mb/s (ok. 34 MB na minutę); standard = 720x1280, ok. 2,5 Mb/s
+const QUALITY = { high: { res: 1.5, bitrate: 4_500_000 }, standard: { res: 1, bitrate: 2_500_000 } };
 let VIDEO_BITRATE = QUALITY.high.bitrate;
 let OW = Math.round(W * 1.5), OH = Math.round(H * 1.5);
 
@@ -104,7 +108,7 @@ async function encodeWebCodecs(film, canvas, method, onProgress) {
   for (let i = 0; i < total; i++) {
     if (failure) throw failure;
     const t = i / fps;
-    frame(ctx, t, film);
+    await frame(ctx, t, film);
     const vf = new VideoFrame(canvas, { timestamp: i * frameDur, duration: frameDur });
     venc.encode(vf, { keyFrame: i % (fps * 2) === 0 });
     vf.close();
@@ -128,7 +132,8 @@ async function recordRealtime(film, canvas, method, onProgress, audioCtx) {
   const src = actx.createBufferSource();
   src.buffer = buffer;
   src.connect(dest);
-  frame(ctx2d, 0, film);
+  film.live = true;
+  await frame(ctx2d, 0, film, true);
   const vstream = canvas.captureStream(fps);
   const stream = new MediaStream([...vstream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
   const rec = new MediaRecorder(stream, { mimeType: method.mime, videoBitsPerSecond: VIDEO_BITRATE, audioBitsPerSecond: 160000 });
@@ -141,7 +146,7 @@ async function recordRealtime(film, canvas, method, onProgress, audioCtx) {
   await new Promise((resolve) => {
     const loop = () => {
       const t = actx.currentTime - t0;
-      frame(ctx2d, Math.max(0, t), film);
+      frame(ctx2d, Math.max(0, t), film, true);
       onProgress?.(Math.min(1, Math.max(0, t / duration)));
       if (t >= duration + 0.2) return resolve();
       requestAnimationFrame(loop);
@@ -164,6 +169,9 @@ export async function renderFilm(film, canvas, { onProgress, audioCtx, force, qu
   canvas.width = OW;
   canvas.height = OH;
   await loadReal();
+  await loadVideo();
+  film.live = false;
+  film.shots = null;
   const method = await pickMethod(film.fps, film.buffer.sampleRate, force);
   if (!method) throw new Error('Ta przeglądarka nie potrafi zapisać filmu. Spróbuj w Chrome (Android) lub Safari (iPhone).');
   if (method.kind === 'webcodecs') {

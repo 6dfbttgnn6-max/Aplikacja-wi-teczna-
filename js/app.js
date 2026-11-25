@@ -4,7 +4,7 @@ import { loadVoice, synthesize, sampleRate, VOICES } from './tts.js';
 import { buildSoundtrack } from './audio.js';
 import { renderFilm } from './render.js';
 import { W, H } from './scene.js';
-import { loadReal, drawReal, cameraAt, setResolution } from './real.js';
+import { loadReal, loadVideo, drawReal, shotAt, setResolution } from './real.js';
 import { getSettings, initSettingsUI } from './settings.js';
 
 const $ = (s) => document.querySelector(s);
@@ -69,7 +69,7 @@ const t0 = performance.now();
 function heroLoop() {
   if (!heroOn) return;
   const t = (performance.now() - t0) / 1000;
-  drawReal(heroCtx, t, { mouth: 0 }, cameraAt(t, null));
+  drawReal(heroCtx, t, { mouth: 0 }, shotAt(t, null));
   requestAnimationFrame(heroLoop);
 }
 Promise.all([document.fonts.ready, loadReal()]).then(() => requestAnimationFrame(heroLoop));

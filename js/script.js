@@ -40,54 +40,54 @@ export function buildScript({ vocative, gender, gifts, seed = Date.now() }) {
     `Ho, ho, ho! Witaj, ${g('drogi', 'droga')} ${vocative}!`,
     pick([
       'Pozdrawiam Cię serdecznie z mojej zaśnieżonej pracowni na dalekiej Północy.',
-      'Mówi do Ciebie Święty Mikołaj, prosto z mojej ciepłej pracowni na Biegunie Północnym.',
-      'Tu Święty Mikołaj. Pozdrawiam Cię gorąco z mojej pracowni w krainie wiecznego śniegu.',
+      'Mówię do Ciebie prosto z mojej pracowni na Biegunie Północnym, gdzie właśnie pada śnieg.',
+      'Tu Święty Mikołaj. Przesyłam Ci gorące pozdrowienia z krainy wiecznego śniegu.',
     ], rnd),
   ];
 
   // sekcja "wish": w tym czasie na ekranie Mikołaj podnosi list, zakłada okulary i czyta
   const wish = [
     pick([
-      'Mam tutaj list od Ciebie. Przeczytałem go bardzo uważnie, od pierwszego do ostatniego słowa.',
-      'Moje elfy przyniosły mi Twój list. Założyłem okulary i przeczytałem go z wielką radością.',
-      'Trzymam w dłoniach list od Ciebie. Przeczytałem go już kilka razy, tak bardzo mi się spodobał.',
+      'Mam tutaj Twój list. Przeczytałem go bardzo uważnie, słowo po słowie.',
+      'Elfy przyniosły mi Twój list. Założyłem okulary i przeczytałem go z ogromną radością.',
+      'Trzymam w rękach Twój list. Przeczytałem go już kilka razy, bo bardzo mnie ucieszył.',
     ], rnd),
   ];
   if (G) {
     wish.push(pick([
       `${g('Napisałeś', 'Napisałaś')} w nim, że bardzo ${g('chciałbyś', 'chciałabyś')} dostać ${G}.`,
-      `Wiem z niego, że najbardziej ${g('chciałbyś', 'chciałabyś')} dostać ${G}.`,
-      `${g('Napisałeś', 'Napisałaś')}, że marzysz o tym, żeby dostać ${G}.`,
+      `Dowiedziałem się z niego, że najbardziej ${g('chciałbyś', 'chciałabyś')} dostać ${G}.`,
+      `${g('Napisałeś', 'Napisałaś')}, że marzysz o tym, by dostać ${G}.`,
     ], rnd));
   }
 
   const good = pick([
-    `Wiem, że przez cały rok ${g('byłeś bardzo grzecznym chłopcem', 'byłaś bardzo grzeczną dziewczynką')}. Opowiedzieli mi o tym Twoi bliscy, a i ja sam widziałem to nie raz, kiedy zaglądałem przez okno.`,
-    `Twoi bliscy powiedzieli mi, że przez cały rok ${g('byłeś bardzo grzeczny', 'byłaś bardzo grzeczna')}. Ja też to widziałem, gdy po cichutku zaglądałem przez okno.`,
-    `Z tego, co opowiedzieli mi Twoi bliscy, i z tego, co sam widziałem przez okno, wiem, że przez cały rok ${g('byłeś bardzo grzeczny', 'byłaś bardzo grzeczna')}.`,
+    `Wiem, że przez cały rok ${g('byłeś bardzo grzecznym chłopcem', 'byłaś bardzo grzeczną dziewczynką')}. Opowiedzieli mi o tym Twoi najbliżsi, a i ja sam nieraz to widziałem, gdy zaglądałem przez okno.`,
+    `Twoi najbliżsi opowiedzieli mi, że przez cały rok ${g('byłeś bardzo grzeczny', 'byłaś bardzo grzeczna')}. Sam też to widziałem, kiedy po cichutku zaglądałem przez okno.`,
+    `Od Twoich najbliższych wiem, że przez cały rok ${g('byłeś bardzo grzeczny', 'byłaś bardzo grzeczna')}. Ja też to widziałem, gdy czasem zaglądałem przez okno.`,
   ], rnd);
 
   const sorry = pick([
-    'Muszę Ci jednak coś powiedzieć. W tym roku nie dam rady odwiedzić Cię osobiście. Na całym świecie czeka na mnie tak wiele dzieci, że moje renifery ledwo nadążają.',
-    'Mam też dla Ciebie pewną wiadomość. Bardzo przepraszam, ale tym razem nie przyjadę do Ciebie osobiście. Mam do odwiedzenia mnóstwo dzieci na całym świecie, a noc wigilijna jest taka krótka.',
-    'Wybacz mi, proszę, że w tym roku nie zapukam do Twoich drzwi. Muszę odwiedzić tyle dzieci na całym świecie, że nawet moje najszybsze renifery ledwo dają radę.',
+    'Przepraszam Cię, ale w tym roku nie dam rady odwiedzić Cię osobiście. Na całym świecie czeka na mnie tyle dzieci, że moje renifery ledwo nadążają.',
+    'Mam też dla Ciebie pewną wiadomość. Przepraszam Cię, ale tym razem nie przyjadę do Ciebie osobiście. Mam do odwiedzenia mnóstwo dzieci na całym świecie, a wigilijna noc jest taka krótka.',
+    'Przepraszam Cię, że w tym roku nie zapukam do Twoich drzwi. Muszę odwiedzić tyle dzieci na całym świecie, że nawet moje najszybsze renifery ledwo dają radę.',
   ], rnd);
 
   const presents = G
     ? pick([
       `Ale nie martw się! Moje elfy już pakują ${G}. W wigilijny wieczór znajdziesz wszystko pod choinką.`,
-      `Ale nic się nie martw. Prezenty, o które ${g('prosiłeś', 'prosiłaś')}, będą na Ciebie czekały pod choinką w Wigilię. Elfy już pakują ${G}.`,
-      `Obiecuję Ci, że w Wigilię pod Twoją choinką znajdziesz ${G}. Moje elfy właśnie je pakują.`,
+      `Ale nie martw się. Prezenty, o które ${g('prosiłeś', 'prosiłaś')}, będą na Ciebie czekały pod choinką w Wigilię. Elfy właśnie pakują ${G}.`,
+      `Obiecuję Ci, że w Wigilię znajdziesz pod choinką ${G}. Moje elfy już się tym zajęły.`,
     ], rnd)
     : pick([
       `Ale nie martw się! Prezenty, o które ${g('prosiłeś', 'prosiłaś')}, będą na Ciebie czekały pod choinką w wigilijny wieczór.`,
-      `Obiecuję Ci jednak, że w Wigilię pod Twoją choinką pojawią się prezenty, o których ${g('pisałeś', 'pisałaś')} w liście. Elfy już je starannie pakują.`,
+      `Obiecuję Ci, że w Wigilię pod Twoją choinką pojawią się prezenty, o których ${g('pisałeś', 'pisałaś')} w liście. Elfy już je starannie pakują.`,
     ], rnd);
 
   const advice = pick([
-    `Pamiętaj, ${g('bądź grzeczny', 'bądź grzeczna')} i pilnie się ucz przez cały przyszły rok. Ja i moje elfy wciąż na Ciebie patrzymy.`,
-    `Proszę Cię, ${g('bądź grzeczny', 'bądź grzeczna')} i dobrze się ucz także w przyszłym roku. Pamiętaj, że cały czas Cię obserwuję.`,
-    `A w przyszłym roku ${g('bądź tak samo grzeczny', 'bądź tak samo grzeczna')} i ucz się pilnie. Będę na Ciebie patrzył z mojej pracowni.`,
+    `Pamiętaj, ${g('bądź grzeczny', 'bądź grzeczna')} i pilnie się ucz przez cały przyszły rok. Moje elfy będą mi opowiadać, jak Ci idzie.`,
+    `Proszę Cię, ${g('bądź grzeczny', 'bądź grzeczna')} i dobrze się ucz także w przyszłym roku. Będę zaglądał do mojej magicznej księgi, żeby sprawdzić, jak sobie radzisz.`,
+    `A w przyszłym roku ${g('bądź tak samo grzeczny', 'bądź tak samo grzeczna')} i ucz się pilnie. Będę o Tobie pamiętał przez cały rok.`,
   ], rnd);
 
   const ending = 'Ho, ho, ho! Wesołych Świąt Bożego Narodzenia!';

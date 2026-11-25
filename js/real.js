@@ -173,7 +173,7 @@ function buildShots(film) {
     if (it.start >= videoStart - 0.01 && it.start < videoEnd) type = 'wideo';
     else {
       // zdania zwracające się do dziecka zostają w zbliżeniu
-      const direct = /^(ho|witaj|wiem|pamiętaj|proszę|muszę|bardzo przepraszam|wybacz|dziękuję|jaki wspaniały|wesołych)/i.test(it.text);
+      const direct = /^(ho|witaj|wiem|pamiętaj|proszę|muszę|przepraszam|mam też|obiecuję|ale nie|dziękuję|wesołych)/i.test(it.text);
       const kw = KEYWORDS.find(([re]) => re.test(it.text));
       if (kw && !direct) type = kw[1];
       else if (kw && direct && it.end - it.start > 4.5) type = kw[1];

@@ -1,7 +1,6 @@
 // Ustawienia filmu (zapamiętywane na tym telefonie).
 const KEY = 'mikolaj-ustawienia-v1';
 export const DEFAULTS = {
-  letterTempo: 0.8,   // tempo czytania listu (1 = normalne)
   santaTempo: 0.92,   // tempo pozostałych słów Mikołaja
   pause: 1.4,         // mnożnik pauz między zdaniami
   pitch: 0.87,        // wysokość głosu (mniej = niżej)
@@ -24,7 +23,6 @@ function save(s) {
 
 const pct = (v) => Math.round(v * 100) + '%';
 const FIELDS = [
-  { id: 'letterTempo', fmt: pct },
   { id: 'santaTempo', fmt: pct },
   { id: 'pause', fmt: (v) => (v < 1.1 ? 'krótkie' : v < 1.6 ? 'średnie' : 'długie') },
   { id: 'pitch', fmt: (v) => (v < 0.84 ? 'bardzo niski' : v < 0.9 ? 'niski' : v < 0.96 ? 'średni' : 'naturalny') },

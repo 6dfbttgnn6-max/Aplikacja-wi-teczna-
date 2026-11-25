@@ -36,7 +36,7 @@ const BROLL = {
   elfy: { from: { z: 2.0, x: 1820, y: 2380, par: [-0.010, 0] }, to: { z: 2.2, x: 1780, y: 2330, par: [0.008, 0] } },
   prezenty: { from: { z: 1.8, x: 430, y: 2950, par: [0.010, 0.002] }, to: { z: 2.0, x: 470, y: 2880, par: [-0.008, -0.002] } },
   choinka: { from: { z: 2.2, x: 330, y: 1100, par: [0.008, 0] }, to: { z: 2.0, x: 360, y: 1000, par: [-0.008, 0] } },
-  kominek: { from: { z: 2.3, x: 1900, y: 1560, par: [-0.008, 0] }, to: { z: 2.1, x: 1880, y: 1500, par: [0.006, 0] } },
+  kominek: { from: { z: 2.7, x: 1980, y: 1560, par: [-0.008, 0] }, to: { z: 2.5, x: 1960, y: 1500, par: [0.006, 0] } },
 };
 const KEYWORDS = [
   [/okn/i, 'okno'],
@@ -161,17 +161,17 @@ function buildShots(film) {
   const D = film.duration;
   const beats = [];
   if (!tl.length) return [{ kind: 'pracownia', start: 0, end: D, cam: BROLL.szeroki }];
-  const letters = tl.filter((x) => x.section === 'letter');
-  const listIdx = tl.findIndex((x) => x.section === 'greeting' && /list/i.test(x.text));
-  const videoStart = listIdx >= 0 ? tl[listIdx].start - 0.3 : (letters.length ? letters[0].start - 2.5 : Infinity);
-  const videoEnd = letters.length ? letters[letters.length - 1].end + 0.5 : videoStart + 6;
+  // wideo (Mikołaj podnosi list, zakłada okulary i czyta) obejmuje zdania o liście i prezentach
+  const wish = tl.filter((x) => x.section === 'wish' || x.section === 'letter');
+  const videoStart = wish.length ? wish[0].start - 0.3 : Infinity;
+  const videoEnd = wish.length ? wish[wish.length - 1].end + 0.4 : -Infinity;
 
   // 1. typ ujęcia dla każdego zdania
   let filler = 0;
   tl.forEach((it, i) => {
     let type = 'blisko';
     if (it.start >= videoStart - 0.01 && it.start < videoEnd) type = 'wideo';
-    else if (it.section !== 'letter') {
+    else {
       // zdania zwracające się do dziecka zostają w zbliżeniu
       const direct = /^(ho|witaj|wiem|pamiętaj|proszę|muszę|bardzo przepraszam|wybacz|dziękuję|jaki wspaniały|wesołych)/i.test(it.text);
       const kw = KEYWORDS.find(([re]) => re.test(it.text));

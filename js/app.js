@@ -1,5 +1,5 @@
 import { vocative, guessGender } from './names.js';
-import { buildScript, countWords } from './script.js';
+import { buildScript, formatGifts } from './script.js';
 import { loadVoice, synthesize, sampleRate, VOICES } from './tts.js';
 import { buildSoundtrack } from './audio.js';
 import { renderFilm } from './render.js';
@@ -8,12 +8,11 @@ import { loadReal, loadVideo, drawReal, shotAt, setResolution } from './real.js'
 import { getSettings, initSettingsUI } from './settings.js';
 
 const $ = (s) => document.querySelector(s);
-const MAX_WORDS = 200;
 const FPS = 25;
 
 const els = {
   name: $('#name'), boy: $('#boy'), girl: $('#girl'), voc: $('#voc'), vocEdit: $('#vocEdit'),
-  vocRow: $('#vocRow'), greet: $('#greet'), letter: $('#letter'), count: $('#count'), go: $('#go'),
+  vocRow: $('#vocRow'), greet: $('#greet'), gifts: $('#gifts'), giftsSay: $('#giftsSay'), voiceStatus: $('#voiceStatus'), go: $('#go'),
   form: $('#form'), progress: $('#progress'), step: $('#step'), bar: $('#bar'), pct: $('#pct'),
   result: $('#result'), video: $('#video'), share: $('#share'), download: $('#download'), again: $('#again'),
   hero: $('#hero'), error: $('#error'), note: $('#note'),
@@ -40,10 +39,12 @@ function updateVoc() {
 }
 
 function validate() {
-  const words = countWords(els.letter.value);
-  els.count.textContent = `${words} / ${MAX_WORDS} słów`;
-  els.count.classList.toggle('over', words > MAX_WORDS);
-  const ok = els.name.value.trim() && gender && els.voc.value.trim() && words > 0 && words <= MAX_WORDS;
+  const G = formatGifts(els.gifts.value);
+  const f = gender === 'f';
+  els.giftsSay.textContent = G
+    ? `„…${f ? 'napisałaś' : 'napisałeś'}, że bardzo ${f ? 'chciałabyś' : 'chciałbyś'} dostać ${G}.”`
+    : 'Gdy zostawisz puste, Mikołaj powie ogólnie o prezentach, o które dziecko prosiło.';
+  const ok = els.name.value.trim() && gender && els.voc.value.trim();
   els.go.disabled = !ok;
   return ok;
 }
@@ -59,7 +60,7 @@ els.boy.addEventListener('click', () => setGender('m'));
 els.girl.addEventListener('click', () => setGender('f'));
 els.voc.addEventListener('input', () => { vocManual = true; updateVoc(); });
 els.vocEdit.addEventListener('click', () => { els.vocRow.hidden = false; els.voc.focus(); });
-els.letter.addEventListener('input', validate);
+els.gifts.addEventListener('input', validate);
 
 // ---------- scena na stronie (animacja "na żywo")
 const heroCtx = els.hero.getContext('2d');
@@ -73,6 +74,21 @@ function heroLoop() {
   requestAnimationFrame(heroLoop);
 }
 Promise.all([document.fonts.ready, loadReal()]).then(() => requestAnimationFrame(heroLoop));
+
+// ---------- głos i wideo pobierane w tle od razu po otwarciu strony
+let voiceFrac = 0;
+let voiceReady = false;
+const voiceProgress = new Set();
+function showVoice() {
+  els.voiceStatus.textContent = voiceReady
+    ? 'Głos Mikołaja gotowy ✓'
+    : `Przygotowuję głos Mikołaja… ${Math.round(voiceFrac * 100)}% (tylko za pierwszym razem)`;
+}
+const voicePromise = loadVoice(VOICES.mc_speech, (f) => { voiceFrac = f; showVoice(); voiceProgress.forEach((cb) => cb(f)); })
+  .then(() => { voiceReady = true; showVoice(); });
+voicePromise.catch(() => { els.voiceStatus.textContent = 'Nie udało się pobrać głosu. Sprawdź internet i odśwież stronę.'; });
+const videoPromise = loadVideo().catch(() => null);
+showVoice();
 
 // ---------- generowanie
 function progress(step, frac) {
@@ -123,18 +139,22 @@ async function makeFilm() {
   try {
     const name = els.name.value.trim();
     const voc = els.voc.value.trim();
-    progress('Pobieram głos Świętego Mikołaja (tylko za pierwszym razem, ok. 63 MB)…', 0);
-    await loadVoice(VOICES.mc_speech, (f) => progress('Pobieram głos Świętego Mikołaja (tylko za pierwszym razem, ok. 63 MB)…', f * 0.98));
+    if (!voiceReady) {
+      const cb = (f) => progress('Kończę pobieranie głosu Mikołaja (tylko za pierwszym razem)…', f);
+      voiceProgress.add(cb);
+      cb(voiceFrac);
+      await voicePromise;
+      voiceProgress.delete(cb);
+    }
+    await videoPromise;
 
     const cfg = getSettings();
-    const script = buildScript({ vocative: voc, gender, letter: els.letter.value });
-    for (const s of script) s.pauseAfter *= s.section === 'letter' ? cfg.pause : Math.max(1, cfg.pause * 0.8);
+    const script = buildScript({ vocative: voc, gender, gifts: els.gifts.value });
+    for (const s of script) s.pauseAfter *= cfg.pause;
     const segs = [];
     for (let i = 0; i < script.length; i++) {
       progress('Mikołaj nagrywa swoje słowa…', i / script.length);
-      const sec = script[i].section;
-      const tempo = sec === 'letter' ? cfg.letterTempo : cfg.santaTempo;
-      const audio = await synthesize(script[i].text, { lengthScale: 1.1 / tempo });
+      const audio = await synthesize(script[i].text, { lengthScale: 1.1 / cfg.santaTempo });
       segs.push({ ...script[i], audio });
       await new Promise((r) => setTimeout(r, 0));
     }

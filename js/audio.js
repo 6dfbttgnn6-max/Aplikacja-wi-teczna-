@@ -348,12 +348,12 @@ export async function buildSoundtrack(segs, srcRate, { fps = 25, pitch = PITCH, 
   const noise = noiseBuffer(ctx, 1);
   sleighBells(ctx, fx, 0.1, 3.0, noise);
   sleighBells(ctx, fx, Math.max(0, lastEnd + 0.2), 3.4, noise);
-  const firstLetter = timeline.find((x) => x.section === 'letter');
-  if (firstLetter) sparkleGliss(ctx, fx, Math.max(0, firstLetter.start - 1.0));
+  const firstWish = timeline.find((x) => x.section === 'wish');
+  if (firstWish) sparkleGliss(ctx, fx, Math.max(0, firstWish.start + 0.2));
   const amb = ctx.createGain(); amb.gain.value = 0.22 * Math.max(0.4, Math.min(1.3, musicLevel + 0.3)); amb.connect(master);
   fireplace(ctx, amb, duration, noise);
-  // wideo z listem zaczyna się na zdaniu "Mam tutaj list..." (patrz real.js), klip zaczyna od 1. sekundy
-  const listIt = timeline.find((x) => x.section === 'greeting' && /list/i.test(x.text));
+  // wideo z listem zaczyna się na pierwszym zdaniu o liście (patrz real.js), klip zaczyna od 1. sekundy
+  const listIt = timeline.find((x) => x.section === 'wish');
   if (listIt) {
     const v0 = listIt.start - 0.3 - 1.0; // czas filmu odpowiadający 0 s klipu
     const foley = ctx.createGain(); foley.gain.value = 0.9; foley.connect(master);

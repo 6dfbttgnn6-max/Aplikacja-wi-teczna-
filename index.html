@@ -13,7 +13,7 @@
   <main>
     <header>
       <h1>Film od Świętego Mikołaja</h1>
-      <p class="lead">Wpisz imię dziecka i jego list. Mikołaj przeczyta go na głos i nagra film, który wyślesz dalej.</p>
+      <p class="lead">Wpisz imię dziecka i prezenty, o których marzy. Święty Mikołaj nagra dla niego film, który wyślesz dalej.</p>
     </header>
 
     <div class="stage">
@@ -40,18 +40,15 @@
         <input id="voc" type="text" autocomplete="off" maxlength="40" placeholder="np. Zosiu">
       </div>
 
-      <label for="letter">List do Świętego Mikołaja</label>
-      <textarea id="letter" rows="8" placeholder="Drogi Mikołaju! W tym roku byłam grzeczna i pomagałam mamie. Chciałabym dostać…"></textarea>
-      <div id="count" class="count">0 / 200 słów</div>
-
-
+      <label for="gifts">Jakie prezenty dziecko chce dostać?</label>
+      <input id="gifts" type="text" autocomplete="off" maxlength="160" placeholder="np. lalkę, różowy rower, książkę o koniach">
+      <p class="small hint">Wpisz tak, jak pasuje do zdania „Chcę dostać …”, po przecinku.</p>
+      <div class="greet">
+        <span class="muted">Mikołaj powie:</span>
+        <strong id="giftsSay"></strong>
+      </div>
       <details class="settings">
         <summary>⚙️ Ustawienia filmu</summary>
-        <div class="set">
-          <label for="set-letterTempo">Tempo czytania listu <output id="out-letterTempo"></output></label>
-          <input type="range" id="set-letterTempo" min="0.6" max="1.2" step="0.05">
-          <div class="scale"><span>wolniej</span><span>szybciej</span></div>
-        </div>
         <div class="set">
           <label for="set-santaTempo">Tempo mowy Mikołaja <output id="out-santaTempo"></output></label>
           <input type="range" id="set-santaTempo" min="0.6" max="1.2" step="0.05">
@@ -84,8 +81,9 @@
         <button type="button" id="set-reset" class="link">Przywróć ustawienia domyślne</button>
       </details>
       <button type="button" id="go" class="go" disabled>🎬 Film od Świętego Mikołaja</button>
+      <p id="voiceStatus" class="small voice"></p>
       <p id="error" class="error" hidden></p>
-      <p class="small">Za pierwszym razem aplikacja pobiera darmowy głos Mikołaja (ok. 63 MB, najlepiej przez Wi‑Fi). Film powstaje w całości na Twoim telefonie: imię i list nie są nigdzie wysyłane.</p>
+      <p class="small">Za pierwszym razem aplikacja pobiera głos Mikołaja (ok. 63 MB, najlepiej przez Wi‑Fi); zaczyna od razu po otwarciu strony. Film powstaje w całości na Twoim telefonie: imię i prezenty nie są nigdzie wysyłane.</p>
     </section>
 
     <section id="progress" class="card" hidden>

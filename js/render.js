@@ -10,7 +10,10 @@ const frame = async (ctx, t, film, live = false) => {
   if (film.subtitles === false) st.subtitle = '';
   const shot = shotAt(t, film);
   if (live) syncVideoLive(shot);
-  else if (shot.kind === 'wideo') await seekVideo(shot.vt);
+  else {
+    const v = shot.cur.kind === 'wideo' ? shot.cur : shot.prev && shot.prev.kind === 'wideo' ? shot.prev : null;
+    if (v) await seekVideo(v.vt);
+  }
   drawReal(ctx, t, st, shot);
 };
 

@@ -125,6 +125,127 @@ function sparkleGliss(ctx, dest, t0) {
   notes.forEach((n, i) => musicBoxNote(ctx, dest, t0 + i * 0.07, midi(n), 0.35));
 }
 
+function stringsChord(ctx, dest, t, dur, notes) {
+  // miękkie smyczki: piły przez filtr, powolne narastanie
+  const g = ctx.createGain();
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 1400;
+  lp.Q.value = 0.4;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.022, t + 1.2);
+  g.gain.setValueAtTime(0.022, t + dur - 0.3);
+  g.gain.linearRampToValueAtTime(0.0001, t + dur + 1.2);
+  lp.connect(g).connect(dest);
+  for (const n of notes) {
+    for (const det of [-7, 0, 7]) {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = midi(n + 12);
+      o.detune.value = det;
+      const vib = ctx.createOscillator();
+      const vg = ctx.createGain();
+      vib.frequency.value = 4.8 + Math.random();
+      vg.gain.value = 3;
+      vib.connect(vg).connect(o.detune);
+      o.connect(lp);
+      o.start(t); vib.start(t);
+      o.stop(t + dur + 1.3); vib.stop(t + dur + 1.3);
+    }
+  }
+}
+
+function bassNote(ctx, dest, t, dur, n) {
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'sine';
+  o.frequency.value = midi(n - 12);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.09, t + 0.08);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.4);
+  o.connect(g).connect(dest);
+  o.start(t);
+  o.stop(t + dur + 0.5);
+}
+
+function fireplace(ctx, dest, duration, noise) {
+  // niski szum ognia
+  const rumble = ctx.createBufferSource();
+  rumble.buffer = noise;
+  rumble.loop = true;
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260;
+  const rg = ctx.createGain(); rg.gain.value = 0.05;
+  rumble.connect(lp).connect(rg).connect(dest);
+  rumble.start(0);
+  rumble.stop(duration);
+  // trzaski polan
+  let t = 0.3;
+  while (t < duration) {
+    const big = Math.random() < 0.12;
+    const src = ctx.createBufferSource();
+    src.buffer = noise;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = big ? 900 + Math.random() * 1200 : 2000 + Math.random() * 3500;
+    bp.Q.value = 1.2;
+    const g = ctx.createGain();
+    const len = big ? 0.03 + Math.random() * 0.04 : 0.004 + Math.random() * 0.012;
+    const amp = (big ? 0.5 : 0.12 + Math.random() * 0.25);
+    g.gain.setValueAtTime(amp, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    src.connect(bp).connect(g).connect(dest);
+    src.start(t, Math.random() * 0.9, len + 0.02);
+    t += -Math.log(1 - Math.random()) / 5; // średnio 5 trzasków na sekundę
+  }
+}
+
+function paperRustle(ctx, dest, t0, dur, intensity, noise) {
+  const n = Math.round(dur * 55);
+  for (let i = 0; i < n; i++) {
+    const k = i / n;
+    const env = Math.sin(k * Math.PI);
+    const at = t0 + k * dur + (Math.random() - 0.5) * 0.02;
+    const src = ctx.createBufferSource();
+    src.buffer = noise;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 2500 + Math.random() * 4500;
+    bp.Q.value = 0.9;
+    const g = ctx.createGain();
+    const len = 0.01 + Math.random() * 0.05;
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.linearRampToValueAtTime(intensity * env * (0.4 + Math.random() * 0.6), at + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + len);
+    src.connect(bp).connect(g).connect(dest);
+    src.start(at, Math.random() * 0.9, len + 0.02);
+  }
+}
+
+function glassesClick(ctx, dest, t) {
+  for (const [f, a] of [[3200, 0.25], [5100, 0.15]]) {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.frequency.value = f;
+    g.gain.setValueAtTime(a, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    o.connect(g).connect(dest);
+    o.start(t);
+    o.stop(t + 0.06);
+  }
+}
+
+/** Wyrównanie głośności zdania (RMS fragmentów z mową). */
+function normalizeVoice(a, target = 0.085) {
+  let e = 0, n = 0;
+  for (let i = 0; i < a.length; i += 4) { const v = a[i]; if (Math.abs(v) > 0.01) { e += v * v; n++; } }
+  if (!n) return a;
+  const rms = Math.sqrt(e / n);
+  const g = Math.min(4, target / rms);
+  const out = new Float32Array(a.length);
+  for (let i = 0; i < a.length; i++) out[i] = a[i] * g;
+  return out;
+}
+
 /**
  * Składa całą ścieżkę.
  * @param {Array<{audio:Float32Array, pauseAfter:number, section:string, text:string}>} segs
@@ -159,17 +280,24 @@ export async function buildSoundtrack(segs, srcRate, { fps = 25, pitch = PITCH, 
   const presence = ctx.createBiquadFilter(); presence.type = 'peaking'; presence.frequency.value = 3200; presence.Q.value = 0.9; presence.gain.value = 2.5;
   const comp = ctx.createDynamicsCompressor();
   comp.threshold.value = -22; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.2;
-  const voiceGain = ctx.createGain(); voiceGain.gain.value = 1.5;
+  const voiceGain = ctx.createGain(); voiceGain.gain.value = 1.6;
   const reverb = ctx.createConvolver(); reverb.buffer = makeImpulse(ctx);
-  const wet = ctx.createGain(); wet.gain.value = 0.16;
-  hp.connect(warm).connect(presence).connect(comp).connect(voiceGain);
+  const wet = ctx.createGain(); wet.gain.value = 0.12;
+  const deess = ctx.createBiquadFilter(); deess.type = 'peaking'; deess.frequency.value = 6800; deess.Q.value = 2; deess.gain.value = -4;
+  const air = ctx.createBiquadFilter(); air.type = 'highshelf'; air.frequency.value = 9000; air.gain.value = -2;
+  const sat = ctx.createWaveShaper();
+  const curve = new Float32Array(1024);
+  for (let i = 0; i < 1024; i++) { const x = (i / 1023) * 2 - 1; curve[i] = Math.tanh(1.4 * x) / Math.tanh(1.4); }
+  sat.curve = curve;
+  hp.connect(warm).connect(presence).connect(deess).connect(air).connect(sat).connect(comp).connect(voiceGain);
   voiceGain.connect(master);
   voiceGain.connect(reverb).connect(wet).connect(master);
 
   segs.forEach((s, i) => {
     if (!s.audio.length) return;
-    const b = ctx.createBuffer(1, s.audio.length, srcRate);
-    b.copyToChannel(s.audio, 0);
+    const voice = normalizeVoice(s.audio);
+    const b = ctx.createBuffer(1, voice.length, srcRate);
+    b.copyToChannel(voice, 0);
     const src = ctx.createBufferSource();
     src.buffer = b;
     src.playbackRate.value = pitch;
@@ -202,12 +330,16 @@ export async function buildSoundtrack(segs, srcRate, { fps = 25, pitch = PITCH, 
     let tt = start;
     for (const [n, d] of MELODY) {
       if (tt > duration) break;
-      musicBoxNote(ctx, music, tt, midi(n), 0.9);
+      musicBoxNote(ctx, music, tt, midi(n), 0.75);
       tt += d * EIGHTH;
     }
     CHORDS.forEach((ch, bar) => {
       const at = start + bar * 6 * EIGHTH;
-      if (at < duration) padChord(ctx, music, at, 6 * EIGHTH, ch);
+      if (at >= duration) return;
+      padChord(ctx, music, at, 6 * EIGHTH, ch);
+      stringsChord(ctx, music, at, 6 * EIGHTH, ch);
+      bassNote(ctx, music, at, 3 * EIGHTH, ch[0]);
+      bassNote(ctx, music, at + 3 * EIGHTH, 3 * EIGHTH, ch[0] + 7);
     });
   }
 
@@ -218,8 +350,29 @@ export async function buildSoundtrack(segs, srcRate, { fps = 25, pitch = PITCH, 
   sleighBells(ctx, fx, Math.max(0, lastEnd + 0.2), 3.4, noise);
   const firstLetter = timeline.find((x) => x.section === 'letter');
   if (firstLetter) sparkleGliss(ctx, fx, Math.max(0, firstLetter.start - 1.0));
+  const amb = ctx.createGain(); amb.gain.value = 0.22 * Math.max(0.4, Math.min(1.3, musicLevel + 0.3)); amb.connect(master);
+  fireplace(ctx, amb, duration, noise);
+  // wideo z listem zaczyna się na zdaniu "Mam tutaj list..." (patrz real.js), klip zaczyna od 1. sekundy
+  const listIt = timeline.find((x) => x.section === 'greeting' && /list/i.test(x.text));
+  if (listIt) {
+    const v0 = listIt.start - 0.3 - 1.0; // czas filmu odpowiadający 0 s klipu
+    const foley = ctx.createGain(); foley.gain.value = 0.9; foley.connect(master);
+    paperRustle(ctx, foley, v0 + 1.4, 1.0, 0.35, noise);   // podnosi list
+    glassesClick(ctx, foley, v0 + 6.5);                     // zakłada okulary
+    paperRustle(ctx, foley, v0 + 7.5, 1.4, 0.6, noise);    // rozwija list
+  }
 
   const buffer = await ctx.startRendering();
+  // głośność pod telefon: średnio ok. -17 dBFS, szczyty nie wyżej niż -1 dBFS
+  {
+    const L = buffer.getChannelData(0), R = buffer.getChannelData(1);
+    let e = 0, n = 0, peak = 0;
+    for (let i = 0; i < L.length; i += 2) { const v = (Math.abs(L[i]) + Math.abs(R[i])) / 2; peak = Math.max(peak, Math.abs(L[i]), Math.abs(R[i])); if (v > 0.003) { e += v * v; n++; } }
+    const rms = n ? Math.sqrt(e / n) : 0.1;
+    let g = 0.14 / rms;
+    g = Math.min(g, 0.89 / Math.max(peak, 1e-4));
+    for (let i = 0; i < L.length; i++) { L[i] *= g; R[i] *= g; }
+  }
 
   // obwiednia głosu do ruchu ust (wartość 0..1 na klatkę)
   const frames = Math.ceil(duration * fps);

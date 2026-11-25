@@ -13,8 +13,8 @@ Wszystko dzieje się na telefonie. Imię i list nie są nigdzie wysyłane.
 | Wymowa | Własna zamiana pisowni na głoski (`js/g2p.js`), bo fonetyzator WASM gubi polskie znaki. |
 | Imię | Automatyczny wołacz (`js/names.js`: Zosia → Zosiu, Jan → Janie), z możliwością ręcznej poprawki. |
 | Tekst Mikołaja | `js/script.js`: kilka wersji każdego fragmentu, ten sam sens, forma zależna od płci. |
-| Obraz | Montaż w `js/real.js`: plan ogólny pracowni z elfami (`img/mikolaj.jpg`), zbliżenie na Mikołaja z ruchem ust zsynchronizowanym z głosem (`img/mikolaj-blisko.jpg`) i prawdziwe wideo czytania listu w okularach (`img/czytanie.mp4`, wygenerowane w Canva). Do tego ogień, światełka, śnieg, ruch kamery, przejścia i napisy. |
-| Muzyka | „Cicha noc” (F. X. Gruber, 1818, domena publiczna) generowana w przeglądarce, ciszej, gdy Mikołaj mówi, plus dzwoneczki sań. |
+| Obraz | Montaż w `js/real.js`: przebitki dobierane do treści zdań (okno, renifer, elfy, prezenty, kominek), zbliżenie na Mikołaja z ruchem ust, prawdziwe wideo czytania listu w okularach (`img/czytanie.mp4`, Canva). Ruch kamery 2,5D z mapami głębi (WebGL, `js/gl.js`), grafiki powiększone AI (Real-ESRGAN), mapy głębi (Depth Anything V2), przenikania, ziarno filmowe. |
+| Dźwięk | „Cicha noc” (F. X. Gruber, 1818, domena publiczna): czelesta, smyczki, bas, ściszana pod głos. Trzask ognia, szelest listu i stuknięcie okularów zgrane z wideo, dzwoneczki sań. Wyrównana głośność zdań, normalizacja całości. |
 | Plik | WebCodecs + mp4-muxer (H.264 + AAC), a gdy telefon tego nie obsługuje, nagrywanie przez MediaRecorder. |
 
 ## Uruchomienie lokalne

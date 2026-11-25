@@ -123,15 +123,20 @@ async function encodeWebCodecs(film, canvas, method, onProgress) {
   return { blob: new Blob([muxer.target.buffer], { type: 'video/mp4' }), mime: 'video/mp4', ext: 'mp4' };
 }
 
-async function recordRealtime(film, canvas, method, onProgress, audioCtx) {
+async function recordRealtime(film, canvas, method, onProgress, audioCtx, requestGesture) {
   const { fps, duration, buffer } = film;
   const ctx2d = canvas.getContext('2d');
-  const actx = audioCtx || new AudioContext();
-  if (actx.state === 'suspended') await actx.resume();
+  const actx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state !== 'running') { try { await actx.resume(); } catch { /* */ } }
+  if (actx.state !== 'running' && requestGesture) await requestGesture(() => actx.resume());
   const dest = actx.createMediaStreamDestination();
   const src = actx.createBufferSource();
   src.buffer = buffer;
   src.connect(dest);
+  // podłączenie także do wyjścia (prawie bez głośności) – Safari wtedy na pewno przetwarza dźwięk
+  const quiet = actx.createGain();
+  quiet.gain.value = 0.0001;
+  src.connect(quiet).connect(actx.destination);
   film.live = true;
   await frame(ctx2d, 0, film, true);
   const vstream = canvas.captureStream(fps);
@@ -161,7 +166,25 @@ async function recordRealtime(film, canvas, method, onProgress, audioCtx) {
 }
 
 /** Renderuje film. Zwraca {blob, mime, ext, method}. */
-export async function renderFilm(film, canvas, { onProgress, audioCtx, force, quality = 'high' } = {}) {
+/** Sprawdza, czy w gotowym pliku jest słyszalny dźwięk (null = nie da się sprawdzić). */
+async function checkAudio(blob, audioCtx) {
+  try {
+    const ctx = audioCtx && audioCtx.state !== 'closed' ? audioCtx : new (window.AudioContext || window.webkitAudioContext)();
+    const buf = await ctx.decodeAudioData(await blob.arrayBuffer());
+    const d = buf.getChannelData(0);
+    let peak = 0;
+    for (let i = 0; i < d.length; i += 50) peak = Math.max(peak, Math.abs(d[i]));
+    return peak > 0.01;
+  } catch { return null; }
+}
+
+export async function renderFilm(film, canvas, opts = {}) {
+  const res = await renderFilmInner(film, canvas, opts);
+  res.audioOk = await checkAudio(res.blob, opts.audioCtx);
+  return res;
+}
+
+async function renderFilmInner(film, canvas, { onProgress, audioCtx, force, quality = 'high', requestGesture } = {}) {
   const q = QUALITY[quality] || QUALITY.high;
   VIDEO_BITRATE = q.bitrate;
   OW = Math.round(W * q.res); OH = Math.round(H * q.res);
@@ -181,8 +204,8 @@ export async function renderFilm(film, canvas, { onProgress, audioCtx, force, qu
       console.warn('WebCodecs nie zadziałało, nagrywam w czasie rzeczywistym', e);
       const fallback = { kind: 'recorder', mime: recorderMime() };
       if (!fallback.mime) throw e;
-      return { ...(await recordRealtime(film, canvas, fallback, onProgress, audioCtx)), method: fallback };
+      return { ...(await recordRealtime(film, canvas, fallback, onProgress, audioCtx, requestGesture)), method: fallback };
     }
   }
-  return { ...(await recordRealtime(film, canvas, method, onProgress, audioCtx)), method };
+  return { ...(await recordRealtime(film, canvas, method, onProgress, audioCtx, requestGesture)), method };
 }

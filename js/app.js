@@ -83,6 +83,22 @@ function progress(step, frac) {
 }
 
 let lastUrl = null;
+
+/** Pokazuje przycisk i czeka na dotknięcie (Safari wymaga dotyku, żeby włączyć dźwięk). */
+function askForTap(onTap) {
+  return new Promise((resolve) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'go';
+    btn.textContent = '🔊 Dotknij, aby nagrać film z dźwiękiem';
+    els.progress.appendChild(btn);
+    btn.addEventListener('click', async () => {
+      try { await onTap(); } catch { /* */ }
+      btn.remove();
+      resolve();
+    }, { once: true });
+  });
+}
 let lastFile = null;
 
 async function makeFilm() {
@@ -90,7 +106,14 @@ async function makeFilm() {
   els.error.hidden = true;
   // AudioContext musi powstać w momencie kliknięcia (wymóg iPhone'a)
   let audioCtx = null;
-  try { audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 }); audioCtx.resume(); } catch { /* później */ }
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx.resume();
+    // iPhone: krótki cichy dźwięk w chwili dotknięcia "odblokowuje" silnik audio
+    const b = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+    const s = audioCtx.createBufferSource();
+    s.buffer = b; s.connect(audioCtx.destination); s.start(0);
+  } catch { /* później */ }
   let wake = null;
   try { wake = await navigator.wakeLock?.request('screen'); } catch { /* brak */ }
 
@@ -123,6 +146,7 @@ async function makeFilm() {
     els.hero.classList.add('rendering');
     const res = await renderFilm(film, els.hero, {
       quality: cfg.quality,
+      requestGesture: askForTap,
       audioCtx,
       onProgress: (f) => progress('Elfy montują film… Nie wyłączaj ekranu.', f),
     });
@@ -134,7 +158,12 @@ async function makeFilm() {
     els.download.href = lastUrl;
     els.download.download = fileName;
     els.share.hidden = !(navigator.canShare && navigator.canShare({ files: [lastFile] }));
-    els.note.textContent = res.ext === 'mp4' ? '' : 'Uwaga: ten telefon zapisał film w formacie WebM. Jeśli WhatsApp go nie przyjmie, otwórz aplikację w Chrome (Android) lub Safari (iPhone).';
+    const notes = [];
+    if (res.ext !== 'mp4') notes.push('Uwaga: ten telefon zapisał film w formacie WebM. Jeśli WhatsApp go nie przyjmie, otwórz aplikację w Chrome (Android) lub Safari (iPhone).');
+    if (res.audioOk === false) notes.push('⚠️ Ten film wyszedł BEZ DŹWIĘKU. Kliknij „Zrób kolejny film” i spróbuj jeszcze raz, nie wyłączając ekranu i nie przełączając aplikacji.');
+    if (res.audioOk === true) notes.push('Dźwięk w filmie: sprawdzony ✓. Jeśli go nie słychać, podgłośnij telefon i sprawdź przełącznik wyciszenia z boku iPhone\'a.');
+    notes.push(`Sposób zapisu: ${res.method.kind === 'webcodecs' ? 'szybki' : 'na żywo'} (${res.mime}${res.method.audio ? ', ' + res.method.audio : ''}).`);
+    els.note.textContent = notes.join(' ');
     els.progress.hidden = true;
     els.result.hidden = false;
     els.result.scrollIntoView({ behavior: 'smooth' });

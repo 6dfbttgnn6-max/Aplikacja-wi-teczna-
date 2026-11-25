@@ -5,6 +5,7 @@
 // Przebitki dobierane są do treści zdań (np. "okno" -> okno ze śniegiem, "renifery" -> renifer).
 import { W, H, drawSubtitle, goldText, fitSize, drawFrontSnow, drawSparkles } from './scene.js';
 import { glAvailable, glRegister, glRender } from './gl.js';
+import { clipTime, clipRate, READ_OFFSET } from './timing.js';
 
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const ease = (x) => x * x * (3 - 2 * x);
@@ -48,7 +49,6 @@ const KEYWORDS = [
 const FILLERS = ['choinka', 'kominek', 'prezenty', 'okno'];
 
 export const VIDEO_SRC = '../img/czytanie.mp4';
-const V_START = 1.0, V_LOOP_A = 9.0, V_LOOP_B = 14.9;
 
 let RES = 1;
 export function setResolution(r) { RES = r; }
@@ -141,6 +141,8 @@ export function syncVideoLive(shot) {
   if (!video) return;
   const v = shot.cur.kind === 'wideo' ? shot.cur : shot.prev && shot.prev.kind === 'wideo' ? shot.prev : null;
   if (v) {
+    const rate = clipRate(v.vu);
+    if (video.playbackRate !== rate) video.playbackRate = rate;
     if (video.paused) { video.currentTime = v.vt; video.play().catch(() => {}); }
     else if (Math.abs(video.currentTime - v.vt) > 0.35) video.currentTime = v.vt;
   } else if (!video.paused) video.pause();
@@ -191,6 +193,12 @@ function buildShots(film) {
   };
   beats.forEach((b, i) => { if (b.type === 'blisko') run.push(i); else flush(); });
   flush();
+  // zaraz po wideo przebitka (żeby okulary i list nie znikały nagle z kadru)
+  const afterVideo = beats.find((b) => b.start >= videoEnd - 0.05);
+  if (afterVideo && afterVideo.type === 'blisko') {
+    const kw = KEYWORDS.find(([re]) => re.test(tl[beats.indexOf(afterVideo)].text));
+    afterVideo.type = kw ? kw[1] : 'kominek';
+  }
 
   // 3. ujęcia: cięcie tuż przed zdaniem, sklejanie tych samych typów
   const shots = [{ kind: 'pracownia', name: 'szeroki', start: 0, end: beats[0].start - 0.25 }];
@@ -212,14 +220,42 @@ function buildShots(film) {
   let closeN = 0;
   shots.forEach((s) => {
     if (s.kind === 'blisko') s.cam = closeCam(closeN++);
-    else if (s.kind === 'wideo') s.cam = { from: { z: 1.0, x: 384, y: 680 }, to: { z: 1.1, x: 384, y: 640 } };
+    else if (s.kind === 'wideo') s.cam = { video: true };
     else if (s.name === 'final') s.cam = { from: { z: 1.25, x: 1150, y: 1700, par: [0, 0.006] }, to: { z: 1.0, x: 1080, y: 1920, par: [0.008, -0.004] } };
     else s.cam = BROLL[s.name] || BROLL.szeroki;
+  });
+  // wideo zaczyna się dokładnie w tym samym kadrze co poprzednie zbliżenie (niewidoczne cięcie)
+  shots.forEach((s, i) => {
+    if (s.kind !== 'wideo') return;
+    const prev = shots[i - 1];
+    if (prev && prev.kind === 'blisko') {
+      const c = camAt(prev, s.start);
+      s.matchFrom = { z: c.z, x: c.x / 2, y: c.y / 2 };
+      s.hardCut = true;
+    }
   });
   return shots.filter((s) => s.end - s.start > 0.05);
 }
 
+/** Kamera w ujęciu z wideo: podąża za tym, co robi Mikołaj. */
+function videoCam(sh, t) {
+  const u = t - sh.start;
+  const keys = [
+    [0, sh.matchFrom || { z: 1.05, x: 384, y: 700 }],
+    [2.5, { z: 1.12, x: 384, y: 690 }],             // podnosi list: widać list i twarz
+    [READ_OFFSET, { z: 1.32, x: 384, y: 600 }],     // okulary założone: bliżej twarzy
+    [Math.max(READ_OFFSET + 1, sh.end - sh.start), { z: 1.2, x: 384, y: 650 }], // czyta
+  ];
+  let a = keys[0], b = keys[keys.length - 1];
+  for (let i = 0; i < keys.length - 1; i++) if (u >= keys[i][0] && u <= keys[i + 1][0]) { a = keys[i]; b = keys[i + 1]; break; }
+  if (u > keys[keys.length - 1][0]) a = b;
+  const k = b[0] > a[0] ? easeIO(clamp((u - a[0]) / (b[0] - a[0]))) : 0;
+  const sway = { x: Math.sin(t * 0.37) * 1.5, y: Math.sin(t * 0.29 + 1) * 1 };
+  return { z: lerp(a[1].z, b[1].z, k), x: lerp(a[1].x, b[1].x, k) + sway.x, y: lerp(a[1].y, b[1].y, k) + sway.y, par: [0, 0], dolly: 0 };
+}
+
 function camAt(sh, t) {
+  if (sh.cam.video) return videoCam(sh, t);
   const k = easeIO(clamp((t - sh.start) / Math.max(0.1, sh.end - sh.start), -0.1, 1.1));
   const a = sh.cam.from, b = sh.cam.to;
   const sway = { x: Math.sin(t * 0.37) * 3, y: Math.sin(t * 0.29 + 1) * 2 };
@@ -230,15 +266,6 @@ function camAt(sh, t) {
     par: [lerp(ap[0], bp[0], k) + orbit[0], lerp(ap[1], bp[1], k) + orbit[1]],
     dolly: lerp(a.dolly || 0, b.dolly || 0, k),
   };
-}
-
-function videoTime(sh, t, live) {
-  const u = Math.max(0, t - sh.start);
-  const intro = V_LOOP_A - V_START;
-  if (u < intro) return V_START + u;
-  const L = V_LOOP_B - V_LOOP_A;
-  const p = (u - intro) % (2 * L);
-  return live ? V_LOOP_A + ((u - intro) % L) : (p < L ? V_LOOP_A + p : V_LOOP_B - (p - L));
 }
 
 /** Ujęcie (i ewentualnie poprzednie, przy przenikaniu) w chwili t. */
@@ -258,14 +285,14 @@ export function shotAt(t, film) {
   const sh = shots[i];
   const mk = (s) => {
     const o = { kind: s.kind, name: s.name, cam: camAt(s, t) };
-    if (s.kind === 'wideo') o.vt = videoTime(s, t, film.live);
+    if (s.kind === 'wideo') { o.vu = t - s.start; o.vt = clipTime(o.vu, film.live); }
     return o;
   };
   const cur = mk(sh);
   let prev = null, mix = 1;
   if (i > 0) {
-    const DUR = sh.name === 'final' ? 0.9 : shots[i - 1].name === 'szeroki' ? 0.7 : 0.32;
-    const k = (t - sh.start) / DUR;
+    const DUR = sh.hardCut ? 0 : sh.name === 'final' ? 0.9 : shots[i - 1].name === 'szeroki' ? 0.7 : 0.32;
+    const k = DUR ? (t - sh.start) / DUR : 1;
     if (k < 1) { prev = mk(shots[i - 1]); mix = ease(clamp(k)); }
   }
   return { cur, prev, mix };

@@ -1,3 +1,5 @@
+import { READ_OFFSET, filmOffset } from './timing.js';
+
 // Ścieżka dźwiękowa filmu: głos Mikołaja + efekty + cicha muzyka (generowana, bez plików i praw autorskich).
 
 export const OUT_RATE = 48000; // 48 kHz pasuje i do AAC, i do Opus
@@ -254,9 +256,13 @@ function normalizeVoice(a, target = 0.085) {
 export async function buildSoundtrack(segs, srcRate, { fps = 25, pitch = PITCH, music: musicLevel = 1 } = {}) {
   // oś czasu
   let t = INTRO;
+  let firstWish = null, afterFirstWish = false;
   const timeline = segs.map((s) => {
+    // po zdaniu "Mam tutaj Twój list" pauza, aż Mikołaj założy okulary i zacznie czytać
+    if (afterFirstWish) { t = Math.max(t, firstWish.start - 0.3 + READ_OFFSET + 0.15); afterFirstWish = false; }
     const dur = s.audio.length / srcRate / pitch;
     const item = { start: t, end: t + dur, section: s.section, text: s.text };
+    if (s.section === 'wish' && !firstWish) { firstWish = item; afterFirstWish = true; }
     t = item.end + s.pauseAfter;
     return item;
   });
@@ -355,11 +361,12 @@ export async function buildSoundtrack(segs, srcRate, { fps = 25, pitch = PITCH, 
   // wideo z listem zaczyna się na pierwszym zdaniu o liście (patrz real.js), klip zaczyna od 1. sekundy
   const listIt = timeline.find((x) => x.section === 'wish');
   if (listIt) {
-    const v0 = listIt.start - 0.3 - 1.0; // czas filmu odpowiadający 0 s klipu
+    const v0 = listIt.start - 0.3; // początek ujęcia z wideo
+    const at = (vt) => v0 + filmOffset(vt);
     const foley = ctx.createGain(); foley.gain.value = 0.9; foley.connect(master);
-    paperRustle(ctx, foley, v0 + 1.4, 1.0, 0.35, noise);   // podnosi list
-    glassesClick(ctx, foley, v0 + 6.5);                     // zakłada okulary
-    paperRustle(ctx, foley, v0 + 7.5, 1.4, 0.6, noise);    // rozwija list
+    paperRustle(ctx, foley, at(1.4), at(2.4) - at(1.4), 0.35, noise);  // podnosi list
+    glassesClick(ctx, foley, at(6.5));                                 // zakłada okulary
+    paperRustle(ctx, foley, at(7.4), at(8.9) - at(7.4), 0.6, noise);   // rozwija list
   }
 
   const buffer = await ctx.startRendering();

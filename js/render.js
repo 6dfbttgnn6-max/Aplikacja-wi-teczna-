@@ -2,6 +2,7 @@
 // a jeśli telefon jej nie obsługuje – nagrywanie w czasie rzeczywistym przez MediaRecorder.
 import { Muxer, ArrayBufferTarget } from '../vendor/mp4-muxer.mjs';
 import { stateAt, W, H } from './scene.js';
+import { mergeAudio } from './merge.js';
 import { loadReal, loadVideo, drawReal, shotAt, seekVideo, syncVideoLive, setResolution } from './real.js';
 
 // Klatka filmu. W trybie klatka po klatce czekamy, aż wideo przewinie się dokładnie do właściwego miejsca.
@@ -53,12 +54,13 @@ export async function pickMethod(fps, sampleRate, force) {
   const vc = await findVideoCodec(fps);
   const aac = vc && (await audioSupported('mp4a.40.2', sampleRate));
   const mime = recorderMime();
-  const opus = vc && (await audioSupported('opus', sampleRate));
   const methods = [];
+  // 1. wszystko natywnie (Android/Chrome zwykle tak potrafi)
   if (aac) methods.push({ kind: 'webcodecs', video: vc, audio: 'aac' });
-  if (mime && mime.startsWith('video/mp4')) methods.push({ kind: 'recorder', mime });
-  if (opus) methods.push({ kind: 'webcodecs', video: vc, audio: 'opus' });
-  if (mime && !mime.startsWith('video/mp4')) methods.push({ kind: 'recorder', mime });
+  // 2. obraz natywnie, dźwięk dołączany przez ffmpeg (pewny dźwięk, np. iPhone)
+  if (vc) methods.push({ kind: 'webcodecs', video: vc, audio: 'merge' });
+  // 3. nagrywanie na żywo (dźwięk sprawdzany i w razie potrzeby dołączany przez ffmpeg)
+  if (mime) methods.push({ kind: 'recorder', mime });
   if (force) return methods.find((m) => m.kind === force) || methods[0] || null;
   return methods[0] || null;
 }
@@ -72,13 +74,14 @@ async function encodeWebCodecs(film, canvas, method, onProgress) {
   const muxer = new Muxer({
     target: new ArrayBufferTarget(),
     video: { codec: 'avc', width: OW, height: OH, frameRate: fps },
-    audio: { codec: method.audio, numberOfChannels: 2, sampleRate },
+    ...(method.audio === 'merge' ? {} : { audio: { codec: method.audio, numberOfChannels: 2, sampleRate } }),
     fastStart: 'in-memory',
     firstTimestampBehavior: 'offset',
   });
   let failure = null;
 
   // --- dźwięk ---
+  if (method.audio !== 'merge') {
   const aenc = new AudioEncoder({
     output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
     error: (e) => { failure = e; },
@@ -99,6 +102,7 @@ async function encodeWebCodecs(film, canvas, method, onProgress) {
   await aenc.flush();
   aenc.close();
   if (failure) throw failure;
+  }
 
   // --- obraz ---
   const venc = new VideoEncoder({
@@ -183,7 +187,23 @@ async function checkAudio(blob, audioCtx) {
 
 export async function renderFilm(film, canvas, opts = {}) {
   const res = await renderFilmInner(film, canvas, opts);
+  const status = opts.onStatus || (() => {});
+  const mergeProg = (f) => opts.onProgress?.(f);
+  if (res.method.audio === 'merge') {
+    // obraz bez dźwięku + gotowa ścieżka -> MP4 z dźwiękiem AAC
+    res.blob = await mergeAudio(res.blob, film.buffer, { onStatus: status, onProgress: mergeProg });
+    res.mime = 'video/mp4'; res.ext = 'mp4';
+  }
   res.audioOk = await checkAudio(res.blob, opts.audioCtx);
+  if (res.audioOk !== true && res.method.kind === 'recorder') {
+    // nagranie na żywo wyszło ciche (częste na iPhonie): dołączamy dźwięk jeszcze raz, pewnym sposobem
+    try {
+      res.blob = await mergeAudio(res.blob, film.buffer, { onStatus: status, onProgress: mergeProg });
+      res.mime = 'video/mp4'; res.ext = 'mp4';
+      res.method = { ...res.method, audio: 'merge' };
+      res.audioOk = await checkAudio(res.blob, opts.audioCtx);
+    } catch (e) { console.warn('Łączenie dźwięku nie powiodło się', e); }
+  }
   return res;
 }
 
@@ -198,7 +218,8 @@ async function renderFilmInner(film, canvas, { onProgress, audioCtx, force, qual
   await loadVideo();
   film.live = false;
   film.shots = null;
-  const method = await pickMethod(film.fps, film.buffer.sampleRate, force);
+  const method = await pickMethod(film.fps, film.buffer.sampleRate, force === 'merge' ? null : force);
+  if (force === 'merge' && method && method.kind === 'webcodecs') method.audio = 'merge';
   if (!method) throw new Error('Ta przeglądarka nie potrafi zapisać filmu. Spróbuj w Chrome (Android) lub Safari (iPhone).');
   if (method.kind === 'webcodecs') {
     try {

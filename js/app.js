@@ -166,11 +166,13 @@ async function makeFilm() {
     const film = { ...track, subtitles: cfg.subtitles, titleText: `${gender === 'f' ? 'Droga' : 'Drogi'} ${voc}!` };
 
     els.hero.classList.add('rendering');
+    let stepText = 'Elfy montują film… Nie wyłączaj ekranu.';
     const res = await renderFilm(film, els.hero, {
       quality: cfg.quality,
       requestGesture: askForTap,
       audioCtx,
-      onProgress: (f) => progress('Elfy montują film… Nie wyłączaj ekranu.', f),
+      onProgress: (f) => progress(stepText, f),
+      onStatus: (t) => { stepText = t; progress(t, 0); },
     });
     const fileName = `film-od-swietego-mikolaja-${name.toLocaleLowerCase('pl-PL').normalize('NFD').replace(/ł/g, 'l').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-')}.${res.ext}`;
     if (lastUrl) URL.revokeObjectURL(lastUrl);
@@ -184,7 +186,8 @@ async function makeFilm() {
     if (res.ext !== 'mp4') notes.push('Uwaga: ten telefon zapisał film w formacie WebM. Jeśli WhatsApp go nie przyjmie, otwórz aplikację w Chrome (Android) lub Safari (iPhone).');
     if (res.audioOk === false) notes.push('⚠️ Ten film wyszedł BEZ DŹWIĘKU. Kliknij „Zrób kolejny film” i spróbuj jeszcze raz, nie wyłączając ekranu i nie przełączając aplikacji.');
     if (res.audioOk === true) notes.push('Dźwięk w filmie: sprawdzony ✓. Jeśli go nie słychać, podgłośnij telefon i sprawdź przełącznik wyciszenia z boku iPhone\'a.');
-    notes.push(`Sposób zapisu: ${res.method.kind === 'webcodecs' ? 'szybki' : 'na żywo'} (${res.mime}${res.method.audio ? ', ' + res.method.audio : ''}).`);
+    const how = res.method.audio === 'merge' ? (res.method.kind === 'webcodecs' ? 'szybki + łączenie dźwięku' : 'na żywo + łączenie dźwięku') : res.method.kind === 'webcodecs' ? 'szybki' : 'na żywo';
+    notes.push(`Sposób zapisu: ${how} (${res.mime}).`);
     els.note.textContent = notes.join(' ');
     els.progress.hidden = true;
     els.result.hidden = false;

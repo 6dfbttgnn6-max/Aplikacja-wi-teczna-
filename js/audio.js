@@ -269,7 +269,8 @@ export async function buildSoundtrack(segs, srcRate, { fps = 25, pitch = PITCH, 
   const lastEnd = timeline.length ? timeline[timeline.length - 1].end : INTRO;
   const duration = lastEnd + OUTRO;
 
-  const ctx = new OfflineAudioContext(2, Math.ceil(duration * OUT_RATE), OUT_RATE);
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const ctx = new OAC(2, Math.ceil(duration * OUT_RATE), OUT_RATE);
   const master = ctx.createGain();
   master.gain.value = 0.9;
   const limiter = ctx.createDynamicsCompressor();

@@ -4,7 +4,7 @@ import { loadVoice, synthesize, sampleRate, VOICES } from './tts.js';
 import { buildSoundtrack } from './audio.js';
 import { renderFilm } from './render.js';
 import { W, H } from './scene.js';
-import { loadReal, loadVideo, drawReal, shotAt, setResolution } from './real.js';
+import { loadReal, loadVideo, primeVideo, drawReal, shotAt, setResolution } from './real.js';
 import { getSettings, initSettingsUI } from './settings.js';
 
 const $ = (s) => document.querySelector(s);
@@ -130,12 +130,14 @@ async function makeFilm() {
     const s = audioCtx.createBufferSource();
     s.buffer = b; s.connect(audioCtx.destination); s.start(0);
   } catch { /* później */ }
+  primeVideo(); // Safari: wideo musi być uruchomione w chwili dotknięcia
   let wake = null;
   try { wake = await navigator.wakeLock?.request('screen'); } catch { /* brak */ }
 
   els.form.hidden = true;
   els.result.hidden = true;
   els.progress.hidden = false;
+  heroOn = false; // na iPhonie animacja odbierałaby moc potrzebną do syntezy głosu
   try {
     const name = els.name.value.trim();
     const voc = els.voc.value.trim();
@@ -147,6 +149,7 @@ async function makeFilm() {
       voiceProgress.delete(cb);
     }
     await videoPromise;
+    primeVideo();
 
     const cfg = getSettings();
     const script = buildScript({ vocative: voc, gender, gifts: els.gifts.value });
@@ -162,7 +165,6 @@ async function makeFilm() {
     const track = await buildSoundtrack(segs, sampleRate(), { fps: FPS, pitch: cfg.pitch, music: cfg.music });
     const film = { ...track, subtitles: cfg.subtitles, titleText: `${gender === 'f' ? 'Droga' : 'Drogi'} ${voc}!` };
 
-    heroOn = false;
     els.hero.classList.add('rendering');
     const res = await renderFilm(film, els.hero, {
       quality: cfg.quality,

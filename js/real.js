@@ -113,17 +113,35 @@ export async function loadVideo() {
   const blob = await res.blob();
   const v = document.createElement('video');
   v.muted = true;
+  v.defaultMuted = true;
   v.playsInline = true;
   v.setAttribute('playsinline', '');
+  v.setAttribute('muted', '');
   v.preload = 'auto';
+  // Safari na iPhonie chętniej dekoduje wideo, które jest na stronie (tu niewidoczne)
+  v.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none;';
+  document.body.appendChild(v);
   v.src = URL.createObjectURL(blob);
+  // iPhone nie wczytuje wideo przed dotknięciem ekranu: nie czekamy w nieskończoność
   await new Promise((ok, fail) => {
-    v.onloadeddata = ok;
-    v.onerror = () => fail(new Error('Nie udało się wczytać wideo z Mikołajem.'));
+    if (v.readyState >= 1) return ok();
+    v.addEventListener('loadedmetadata', ok, { once: true });
+    v.addEventListener('loadeddata', ok, { once: true });
+    v.addEventListener('error', () => fail(new Error('Nie udało się wczytać wideo z Mikołajem.')), { once: true });
+    setTimeout(ok, 4000);
     v.load();
   });
   video = v;
   return v;
+}
+
+/** "Budzi" wideo (wywołać w chwili dotknięcia przycisku – wymóg Safari na iPhonie). */
+export function primeVideo() {
+  if (!video) return;
+  try {
+    const p = video.play();
+    if (p && p.then) p.then(() => video.pause()).catch(() => {});
+  } catch { /* */ }
 }
 
 export async function seekVideo(t) {
@@ -135,6 +153,15 @@ export async function seekVideo(t) {
     video.currentTime = t;
     setTimeout(done, 1500);
   });
+  // Safari bywa szybsze z "seeked" niż z gotową klatką: czekamy na nią (maks. 120 ms)
+  if (typeof video.requestVideoFrameCallback === 'function') {
+    await new Promise((ok) => {
+      let fin = false;
+      const end = () => { if (!fin) { fin = true; ok(); } };
+      video.requestVideoFrameCallback(end);
+      setTimeout(end, 120);
+    });
+  }
 }
 
 export function syncVideoLive(shot) {
